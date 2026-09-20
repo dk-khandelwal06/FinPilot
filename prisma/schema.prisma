@@ -1,0 +1,313 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          String    @default("USER")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile       Profile?
+  accounts      Account[]
+  transactions  Transaction[]
+  categories    Category[]
+  budgets       Budget[]
+  subscriptions Subscription[]
+  bills         Bill[]
+  goals         Goal[]
+  incomes       Income[]
+  expenses      Expense[]
+  insights      FinancialInsight[]
+  notifications Notification[]
+  conversations AIConversation[]
+  reports       Report[]
+  importJobs    ImportJob[]
+  auditLogs     AuditLog[]
+}
+
+model Profile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency           String   @default("INR") // INR, USD, EUR, GBP
+  avatarUrl          String?
+  country            String   @default("India")
+  ageRange           String?
+  monthlyIncome      Float    @default(0)
+  incomeFrequency    String   @default("Monthly")
+  employmentType     String   @default("Employed")
+  monthlySavingsTarget Float   @default(0)
+  existingDebt       Float    @default(0)
+  emergencyFundStatus Float   @default(0)
+  theme              String   @default("dark")
+  onboardingComplete Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Account {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         String        // Checking, Savings, CreditCard, Cash, UPI, Wallet, Investment
+  balance      Float         @default(0)
+  currency     String        @default("INR")
+  institution  String?
+  accountNumber String?
+  color        String?
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Category {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         String        // Expense, Income
+  color        String?
+  icon         String?
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+  budgetItems  BudgetItem[]
+}
+
+model Transaction {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amount        Float
+  type          String    // Expense, Income, Transfer
+  date          DateTime
+  merchant      String
+  notes         String?
+  tags          String?   // comma separated tags
+  paymentMethod String?   // UPI, Credit Card, Debit Card, Net Banking, Cash
+  isRecurring   Boolean   @default(false)
+  isAnomaly     Boolean   @default(false)
+  anomalyReason String?
+  receiptUrl    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Budget {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  period      String       @default("Monthly") // Monthly, Quarterly, Annual
+  startDate   DateTime
+  endDate     DateTime
+  totalAmount Float
+  spentAmount Float        @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  items       BudgetItem[]
+}
+
+model BudgetItem {
+  id          String    @id @default(uuid())
+  budgetId    String
+  budget      Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  allocated   Float
+  spent       Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Subscription {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  provider        String?
+  amount          Float
+  currency        String    @default("INR")
+  billingCycle    String    @default("Monthly") // Monthly, Quarterly, Yearly
+  startDate       DateTime
+  nextBillingDate DateTime
+  category        String    @default("Entertainment")
+  paymentMethod   String?
+  status          String    @default("ACTIVE") // ACTIVE, PAUSED, CANCELLED
+  hasPriceIncrease Boolean  @default(false)
+  previousAmount  Float?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Bill {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  biller        String
+  category      String    @default("Utilities") // Rent, EMI, Electricity, Internet, Phone, Insurance, Other
+  amount        Float
+  dueDate       DateTime
+  frequency     String    @default("Monthly") // Monthly, Quarterly, Yearly, Once
+  status        String    @default("UNPAID") // UNPAID, PAID, OVERDUE
+  isRecurring   Boolean   @default(true)
+  autoPay       Boolean   @default(false)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Goal {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  targetAmount        Float
+  currentAmount       Float     @default(0)
+  targetDate          DateTime
+  monthlyContribution Float     @default(0)
+  category            String    @default("Savings")
+  status              String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, PAUSED
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Income {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source        String
+  amount        Float
+  frequency     String    @default("Monthly") // Monthly, Bi-Weekly, One-time
+  date          DateTime
+  isRecurring   Boolean   @default(true)
+  category      String    @default("Salary") // Salary, Freelance, Business, Investment, Other
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Expense {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  amount        Float
+  category      String
+  date          DateTime
+  merchant      String?
+  receiptUrl    String?
+  isRecurring   Boolean   @default(false)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model FinancialInsight {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  explanation String
+  type        String    // SPENDING_SPIKE, SAVINGS_OPPORTUNITY, BUDGET_WARNING, SUBSCRIPTION_ALERT, CASH_FLOW
+  severity    String    @default("INFO") // INFO, WARNING, SUCCESS, DANGER
+  dataBasis   String?   // Explainable data source reference
+  actionLabel String?
+  actionUrl   String?
+  isDismissed Boolean   @default(false)
+  isSaved     Boolean   @default(false)
+  period      String    @default("THIS_WEEK") // TODAY, THIS_WEEK, THIS_MONTH
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  message     String
+  type        String    // BUDGET, BILL, SUBSCRIPTION, GOAL, ANOMALY, SYSTEM
+  severity    String    @default("INFO")
+  isRead      Boolean   @default(false)
+  link        String?
+  createdAt   DateTime  @default(now())
+}
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String      @default("Finance Consultation")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  messages  AIMessage[]
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         String         // USER, AI
+  content        String
+  citations      String?        // JSON string of referenced transactions/categories
+  createdAt      DateTime       @default(now())
+}
+
+model Report {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  type        String    // MONTHLY, ANNUAL, TAX, CASH_FLOW, BUDGET
+  period      String
+  summary     String
+  metricsJson String    // Serialized report metrics & observations
+  createdAt   DateTime  @default(now())
+}
+
+model ImportJob {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename       String
+  fileType       String    // CSV, XLSX, PDF
+  status         String    @default("PENDING") // PENDING, PROCESSING, PREVIEW, COMPLETED, FAILED
+  totalRows      Int       @default(0)
+  importedRows   Int       @default(0)
+  duplicateRows  Int       @default(0)
+  previewDataJson String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String    // LOGIN, LOGOUT, EXPORT_DATA, DELETE_RECORD, IMPORT_DATA, WHAT_IF_SIMULATION
+  entityType  String?
+  entityId    String?
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+}
